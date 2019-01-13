@@ -1,0 +1,229 @@
+---
+title: "Data Wrangling with dplyr"
+author: "Peter Yang"
+date: "1/13/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Subset rows and filter columns
+
+```{r load_packages, message=FALSE}
+
+library(dplyr)
+library(tidyverse)
+
+```
+
+```{r load_data}
+counts_raw <- read_delim("data/counts-raw.txt.gz", delim = "\t")
+```
+
+Goals:
+
+subset rows of a dataframe and select columns of a dataframe
+
+```{r}
+research <- filter(counts_raw, articleType == "Research Article")
+```
+
+Filter to research articles from 2006
+
+```{r}
+research_2006 <- filter(research, year == 2006)
+nrow(research_2006)
+```
+
+Filter to articles with a tweet
+
+```{r}
+research_2006_tweet <- filter(research_2006, backtweetsCount  > 0)
+nrow(research_2006_tweet)
+```
+
+Research articles from 2006 with a FB comment
+"|" is "or" sign
+
+```{r}
+research_2006_fb_tweet_disease <- filter (research, year == 2006, facebookCommentCount > 0 | backtweetsCount > 0, grepl("Infectious Diseases", plosSubjectTags))
+```
+
+Subset the columns with the article information using the dplyr function select()
+
+```{r}
+article_info <- select(research, doi, pubDate, journal, title, articleType, authorsCount)
+colnames(article_info)
+```
+
+New dataframe with columns doi:authorsCount
+
+```{r}
+article_info <- select(research, doi:authorsCount)
+colnames(article_info)
+```
+
+Create a metrics dataframe 
+
+```{r}
+metrics <- select(research, contains("Count"))
+colnames(metrics)
+```
+
+Exclude a column after contains
+
+```{r}
+metrics <- select(research, contains("Count"), -authorsCount)
+colnames(metrics)
+```
+
+```{r}
+metrics <- select(research, contains("Count"), -authorsCount, f1000Factor, wikipediaCites)
+colnames(metrics)
+```
+
+```{r}
+head(select(research, 3))
+```
+
+Slice: slicing only the rows we want by numbers
+
+Rows 1:3 article info dataframe
+
+```{r}
+slice(article_info, 1:3)
+```
+
+```{r}
+low_cite <- filter(research, year <= 2008, pdfDownloadsCount > 1000, mendeleyReadersCount > 15, wosCountThru2011 < 10)
+nrow(low_cite)
+```
+
+```{r}
+nrow(filter(research, year == 2009))
+nrow(filter(research, year == 2009, backtweetsCount > 0 | facebookCommentCount > 0))
+#nrow(filter(research, year == 2009, facebookCommentCount > 1))
+```
+
+```{r}
+str(low_cite)
+```
+
+# Chaining commands with dplyr
+
+Remember in unix we pipe with the | sign. In dplyr we use %>%
+Use shift + control + M 
+
+Facebook articles from 2006
+
+```{r}
+facebook_2006 <- research %>% filter(year == 2006) %>% select(contains("facebook"))
+head(facebook_2006)
+```
+
+```{r}
+research_2006 <- filter(research, year == 2006)
+facebook_2006 <- select(research_2006, contains("facebook"))
+```
+
+Pipe with base R functions as well
+
+```{r}
+research %>% filter(year == 2006) %>% select(contains("facebook")) %>% head
+```
+
+Arrange functions: use to sort rows in a dataframe
+
+```{r}
+research %>% arrange(authorsCount, wosCountThru2011) %>% select(authorsCount, wosCountThru2011) %>% slice(1:10)
+```
+
+
+Flip arrangement of the sort
+
+```{r}
+### research %>% arrange(desc(authorsC...))
+```
+
+```{r}
+research %>% arrange(desc(wosCountThru2011)) %>% select(title, wosCountThru2011) %>% slice(1:3)
+research %>% arrange(desc(authorsCount)) %>% select(title, journal, plosSubjectTags, authorsCount) %>% slice(1:3)
+```
+
+# Summarize data with dplyr
+
+* new columns with mutate
+* sumarize function
+* count number of observations m()
+* group data by variable (group_by)
+
+```{r}
+research <- research %>% mutate(weeksSincePublished = daysSincePublished / 7)
+
+research %>% select(daysSincePublished) %>% head()
+
+```
+
+```{r}
+research <- research %>% mutate(weeksSincePublished = daysSincePublished / 7, yearsSincePublished = weeksSincePublished / 52)
+
+select(research, contains("Since")) %>% slice(1:5)
+```
+
+Summarize the data
+
+```{r}
+
+summarize(research, plos_mean = mean(plosCommentCount))
+```
+
+```{r}
+plot_stats <- research %>% summarise(plos_mean = mean(plosCommentCount), 
+                                     plos_sd = sd(plosCommentCount))
+
+head(plot_stats)
+```
+
+```{r}
+research %>% filter(journal == "pone", year == 2007) %>% summarise(plos_mean = mean(plosCommentCount), plos_sd = sd(plosCommentCount))
+```
+
+Add number of observations
+
+```{r}
+research %>% filter(journal == "pone", year == 2007) %>% summarise(plos_mean = mean(plosCommentCount), 
+                                                                   plos_sd = sd(plosCommentCount), num = n())
+```
+
+Use group by to get stats by a grouping of the data
+
+```{r}
+mean_metric_per_var <- function(metric, variable){
+  result = integer(length(variable))
+  for (v in variable){
+    result[v] <- means(metric[variable == v])
+  }
+  return(result)
+}
+```
+
+dplyr
+
+```{r}
+#research %>% group_by(journal, year) %>% summarise(tweets_mean = mean(backtweetsCount)) .....
+```
+
+```{r}
+tweets_per_journal <- research %>%
+  group_by(journal) %>%
+  summarise(mean_tw = sd(backtweetsCount),
+            sd_tw = sd(backtweetsCount),
+            num=n(),
+            SEM=sd_tw/sqrt(num)) %>%
+  select(-sd_tw)
+
+tweets_per_journal
+```
+

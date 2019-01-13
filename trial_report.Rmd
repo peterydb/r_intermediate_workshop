@@ -1,0 +1,223 @@
+---
+title: "Trial report"
+author: "Peter Yang"
+date: "1/12/2019"
+output: 
+  html_document:
+    # This sets global options
+    toc: true
+    number_sections: true
+    #theme: cerulean
+    #highlight: espresso
+    #fig_width: 3
+    #fig_height: 3
+    fig.caption : yes
+    
+---
+
+<!-- toc: true means table of contents; include=FALSE means chunk won't show -->
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<!--  message=FALSE means only show code but not messages (results='hide' means no output result) -->
+```{r load_library, message=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+```
+
+# Initial Analysis
+
+## Reading in data on plos papers
+
+```{r read_data}
+counts_raw <- read_delim("data/counts-raw.txt.gz", delim = "\t")
+
+```
+
+## Diagnostic plots
+
+<!-- customize size of figure just for this chunk -->
+```{r histogram_weeks_since_published, fig.height = 3, fig.width = 5, fig.cap = "Figure 1: Weeks since publication per paper"}
+weeks_since_pub <- counts_raw$daysSincePublished / 7
+hist(weeks_since_pub, xlab = "# of weeks", main = "Weeks since Publication")
+```
+
+## Some vague state,ents about data
+
+Here's an example of a math function: $y = x^2$
+
+This daraset consists of `r dim(counts_raw)[1]` publications
+
+<!-- comments comments (this does not show up in document) -->
+
+```{r scatterplot_pubs_vs_citations}
+plot(counts_raw$daysSincePublished, counts_raw$wosCountThru2011)
+```
+
+## Exercise:
+  1. plot a histogram of favorite variable in dataset
+  2. make scatter plot of variable against citation counts
+    a. comment on whether it has a marked effect on citation counts
+    b. if appropriate create a scatter plot of log-transformed values
+  3. verify the hitograms look nice
+  
+
+```{r histogram_journal}
+hist(log(counts_raw$pdfDownloadsCount), main = "log(PDF download count)")
+```
+
+```{r scatterplot_wosCountThru2011_vs_pdfDownloadsCount}
+plot(log(counts_raw$pdfDownloadsCount), counts_raw$wosCountThru2011, xlab = "log(number of pdf downloads)", ylab = "number of citations since 2011", main = "citations vs log(pdf downlaods)")
+```
+
+```{r barplot_trial}
+journals <- table(counts_raw$journal)
+barplot(journals, xlab = "journal name", ylab = "number of pubs")
+```
+
+When a line of code is long, use SHIFT+ENTER for new line
+```{r}
+library(plyr)
+library(ggplot2)
+
+avg_cite_by_journal <- ddply(counts_raw, .(journal), summarize,  citation_avg=mean(wosCountThru2011))
+ggplot(avg_cite_by_journal, aes(y=citation_avg, x=journal)) + geom_bar(stat="identity") + 
+  geom_text(aes(label=format(citation_avg, digits = 2)), vjust=1.6, color="white", size=3.5) + 
+  theme_minimal() + labs(x="Name of Journal", y = "Avg citation per Paper", title = "Test ggplot") + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+counts_raw$authorsCount
+counts_raw[, "authorsCount"]
+counts_raw[["authorsCount"]]
+
+data <- counts_raw$authorsCount
+plot(x = counts_raw$wosCountThru2011, y=data)
+
+data_column <- "authorsCount"
+log_data <- log(counts_raw[[data_column]])
+plot(x=counts_raw$wosCountThru2011, y=log_data)
+
+# Create a new function that does things
+plot_log_data <- function(input_dataframe, column){
+  data_column <- input_dataframe[[column]]
+  log_data_column <- log(data_column)
+  return(log_data_column)
+}
+
+plot_log_data(input_dataframe = counts_raw, column = "deliciousCount")
+```
+
+
+```{r}
+pub_date <- counts_raw$pubDate
+head(pub_date)
+num_unique <- function(x){
+  unique_data <- unique(x)
+  length_unique <- length(unique_data)
+  print("I'm in num_unique!")
+  return(length(unique_data))
+}
+
+num_unique(x = counts_raw$pubDate)
+
+
+```
+
+
+# Debug test
+After calling debug(function), next time when you use "function", it enters debug mode
+Use undebug(function) to exit this mode
+
+```{r}
+debug(num_unique)
+num_unique(x = counts_raw$doi)
+```
+
+
+Use stop command to prevent errors
+```{r}
+column_num_unique <- function(data,column_name){
+  data_column <- data[[column_name]]
+  if(is.null(data_column)){
+    stop("No such column in data!")
+  }
+  unique_entries <- num_unique(data_column)
+  return(unique_entries)
+}
+#debug(column_num_unique)
+column_num_unique(data = counts_raw,column_name = "doi")
+```
+
+### For loops and for fun
+seq_along returns index sequence of that length 
+x <- c(2 4 6 8 20)
+seq_along(x) = 1 2 3 4 5
+
+```{r}
+names_of_columns <- colnames(counts_raw)
+my_column <- "doi"
+column_num_unique(data = counts_raw,
+                  column_name = my_column)
+unique_col_ct <- function(data){
+  data_column_names <- colnames(data)
+  output_length <- length(data_column_names)
+  result <- integer(output_length)
+  for(i in seq_along(data_column_names)){
+    my_column <- data_column_names[i]
+    result[i] <- column_num_unique(data,my_column)
+  }
+  print("we finished!")
+  return(result)
+}
+```
+
+```{r}
+x <- c(8,9,3,5,7)
+x[4]
+y <- c(1,2)
+x[y]
+z <- length(x)
+x[z]
+```
+
+We can also subset using double bracket syntax to get *one* element back 
+```{r}
+x[[1]]
+#x[[y]]
+```
+
+## Indexing dataframes
+Dataframes can also be indexed with single bracket '[' and double bracket '[[' syntax depending on what we want
+
+```{r}
+counts_raw[,1]
+y <- c(1,2)
+counts_raw[,y]
+counts_raw[,c("doi", "daysSincePublished")]
+counts_vector <- counts_raw[["doi"]]
+doi_dataframe <- counts_raw[,"doi"]
+```
+
+
+
+```{r}
+counts_columns <- c("facebookShareCount", "facebookLikeCount")
+max_of_each_col <- function(data, count_colnames){
+  number_of_columns <- length(count_colnames)
+  result <- integer(number_of_columns)
+  for (i in seq_along(count_colnames)){
+    my_column <- count_colnames[i]
+    my_vector <- data[[my_column]]
+    result[i] <- max(my_vector, na.rm = TRUE) # na.rm=True removes NA values, if not removing, max will give NA as output
+  }
+  return(result)
+}
+
+#debug(max_of_each_col)
+max_of_each_col(counts_raw, counts_columns)
+
+```

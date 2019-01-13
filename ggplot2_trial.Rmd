@@ -1,0 +1,135 @@
+---
+title: "plots_ggplot2"
+author: "Peter Yang"
+date: "1/13/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+```
+
+Load data:
+
+```{r}
+counts_raw <- read_delim("data/counts-raw.txt.gz", delim="\t")
+research <- filter(counts_raw, articleType == "Research Article")
+```
+
+# Mapping data to plot aesthetics
+
+Goals:
+1. Map columns of a data frame to plot aesthetics using aes
+2. Add layers to plot
+
+```{r}
+p <- ggplot(data = research, mapping = aes(x = pdfDownloadsCount, y = wosCountThru2011))
+p <- p + geom_point()
+p <- ggplot(research, aes(x=pdfDownloadsCount, y=wosCountThru2011)) + geom_point()
+p
+```
+
+Changes aes of geometry
+
+```{r}
+p <- ggplot(research, aes(x=pdfDownloadsCount, y=wosCountThru2011)) + geom_point(aes(color = journal))
+
+p
+```
+
+Change size of points by variable
+```{r}
+p <- ggplot(research, aes(x=log(pdfDownloadsCount), y=wosCountThru2011)) + geom_point(aes(size=authorsCount, color = journal))
+p
+```
+
+Change alpha by variable
+
+```{r}
+p <- ggplot(research, aes(x=log(pdfDownloadsCount), y=wosCountThru2011)) + geom_point(aes(size=authorsCount, color = journal, alpha = daysSincePublished))
+p
+```
+
+Change color on all points not based on data condition
+
+```{r}
+p <- ggplot(research, aes(x=pdfDownloadsCount, y=wosCountThru2011)) + geom_point(color="red", aes(size=authorsCount))
+p
+```
+
+Add another geometry later:
+
+Smoothed line
+
+aes for each specific layer
+
+```{r}
+p <- ggplot(research, aes(x=pdfDownloadsCount, y=wosCountThru2011)) + geom_point(aes(color=journal)) + geom_smooth()
+p
+```
+
+Color both layers by journal
+
+```{r}
+p <- ggplot(research, aes(x=pdfDownloadsCount, y=wosCountThru2011, color=journal)) + geom_point() + geom_smooth()
+
+p
+```
+
+```{r}
+#p <- ggplot(research, aes(x=pdfDownloadsCount, y=wosCountThru2011, color=journal)) + geom_point() + geom_smooth()
+p_challenge <- ggplot(research, aes(x=daysSincePublished, y=wosCountThru2011)) + geom_point(alpha = 0.5, aes(color = journal)) + geom_smooth(color = "red")
+p_challenge
+```
+
+# Control plot scales
+
+Scale how the data maps to the aes
+Control axes
+Control color scale
+
+```{r}
+p <- ggplot(research, aes(x=pdfDownloadsCount, y=wosCountThru2011)) + geom_point(aes(color = journal)) + geom_smooth()
+p <- p + scale_x_log10() + scale_y_log10()
+p
+
+```
+
+```{r}
+p <- ggplot(research, aes(x=log10(pdfDownloadsCount + 1), y=log10(wosCountThru2011 + 1))) + geom_point(aes(color = journal)) + geom_smooth()
+p
+```
+
+```{r}
+p <- ggplot(research, aes(x=log10(pdfDownloadsCount + 1), y=log10(wosCountThru2011 + 1))) + 
+  geom_point(aes(color = journal, alpha = 0.5)) + geom_smooth() + scale_x_continuous(breaks = c(1,3), labels = c(10,100)) +
+  scale_y_continuous(breaks = c(1,3), labels = c(10,100))
+p
+```
+
+Change the color scale
+
+```{r}
+p + scale_color_grey()
+
+```
+
+```{r}
+p + scale_color_manual(values = c("red", "yellow", "orange", "purple", "blue", "green", "pink")) 
+
+```
+
+
+```{r}
+p <- ggplot(research, aes(x=sqrt(pdfDownloadsCount), y=sqrt(wosCountThru2011))) + 
+  geom_point(aes(color = journal, alpha = 0.5)) + geom_smooth() + scale_color_brewer(palette = "Accent") +
+  labs(x="square root of downloads", y = "square root of citation count thru 2011", title = "test title") + 
+  theme(plot.title = element_text(hjust = 0.5))
+p
+
+```
